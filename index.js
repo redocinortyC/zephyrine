@@ -1,5 +1,6 @@
 // Imports
 const { readdirSync } = require('fs');
+const { path } = require("node:path");
 require('dotenv').config();
 
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
@@ -14,6 +15,18 @@ const client = new Client({
 	],
 });
 
+const eventsPath = path.join(__dirname, "events");
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith(".js"));
+
+for (const file of eventFiles) {
+	const filePath = path.join(eventsPath, file);
+	const event = require(filePath);
+	if (event.once) {
+		client.once(event.name, (...args) => event.execute(...args));
+	} else {
+		client.on(event.name, (...args) => event.execute(...args));
+	}
+}
 // Commands collection
 client.commands = new Collection();
 const commandFiles = readdirSync('./commands').filter((file) =>
@@ -32,26 +45,6 @@ client.once('ready', () => {
 	// Status and activities
 	client.user.setStatus('online');
 	client.user.setActivity('the community', { type: 'WATCHING' });
-});
-
-// Interactions
-client.on('interactionCreate', async (interaction) => {
-	if (!interaction.isCommand()) return;
-
-	const command = client.commands.get(interaction.commandName);
-
-	if (!command) return;
-
-	try {
-		await command.execute(interaction);
-	}
-	catch (error) {
-		console.error(error);
-		await interaction.reply({
-			content: 'There was an error while executing this command!',
-			ephemeral: true,
-		});
-	}
 });
 
 // Client login
